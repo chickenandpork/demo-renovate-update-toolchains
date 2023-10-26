@@ -31,6 +31,19 @@ http_archive(
     ],
 )
 
+http_archive(
+    name = "yq_darwin_arm64",
+    build_file_content = "\n".join([
+        """alias(name="yq", actual="//:yq_darwin_arm64", visibility = ["//visibility:public"])""",
+        "",  # readability during debug
+    ]),
+    sha256 = "47d5867c705cc04cb34ae7349b18ac03f1c2d2589da650e3cc57bcf865ee3411",
+    urls = [
+        "https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_darwin_arm64.tar.gz",
+    ],
+)
+
 register_toolchains(
     "//toolchains/yq:yq_darwin_amd64_toolchain",
+    "//toolchains/yq:yq_darwin_arm64_toolchain",
 )

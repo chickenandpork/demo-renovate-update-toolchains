@@ -33,3 +33,27 @@ toolchain(
     toolchain = ":yq_darwin_amd64",
     toolchain_type = ":toolchain_type",  # `toolchain_type(...)` above
 )
+
+yq_toolchain(
+    name = "yq_darwin_arm64",
+    tool = "@yq_darwin_arm64//:yq",
+    visibility = ["//visibility:public"],
+)
+
+# With https://github.com/bazelbuild/platforms/pull/67 it seems that Bazel direction seems to flop
+# back to "aarch64" and "x86_64" rather than the more consistent "amd64" and "arm64"
+toolchain(
+    name = "yq_darwin_arm64_toolchain",
+    exec_compatible_with = [
+        "@platforms//os:osx",  # yep, "osx" not "darwin"
+        "@platforms//cpu:aarch64",  # not "arm64": https://github.com/bazelbuild/platforms/pull/67
+    ],
+    target_compatible_with = [
+        "@platforms//os:osx",
+        "@platforms//cpu:aarch64",
+    ],
+
+    # matches `yq_toolchain( name = "yq_darwin_amd64", ...` in this file
+    toolchain = ":yq_darwin_arm64",
+    toolchain_type = ":toolchain_type",  # `toolchain_type(...)` above
+)
