@@ -1,4 +1,5 @@
 load(":yq_toolchain.bzl", "yq_toolchain")  # load the rule()
+load("@versions_yq//:json.bzl", "YQ")  # generated in WORKSPACE from attachments.json
 
 # define a specific type to trigger type-checking
 toolchain_type(
@@ -6,54 +7,37 @@ toolchain_type(
     visibility = ["//visibility:public"],
 )
 
-yq_toolchain(
-    name = "yq_darwin_amd64",  # local scope doesn't clash with @yq_darwin_amd64
+[
+    yq_toolchain(
+        name = "{}".format(k),
 
-    # tool matches the `bazel run @yq_darwin_amd64//:yq -- --version` binary noted above in
-    # (WORKSPACE) `http_archive( name = "yq_darwin_amd64", ...)` with `alias( name="yq", ...)`
-    # in `build_file_content`.  Note that the alias in that content both maps the consistent `:yq`
-    # to the `:yq_darwin_amd64` arch-specific binary in each tarball archive, but also opens up
-    # visibility
-    tool = "@yq_darwin_amd64//:yq",
-    visibility = ["//visibility:public"],
-)
-
-toolchain(
-    name = "yq_darwin_amd64_toolchain",
-    exec_compatible_with = [
-        "@platforms//os:osx",  # yep, "osx" not "darwin"
-        "@platforms//cpu:x86_64",  # yep, "x86_64" not "amd64"
-    ],
-    target_compatible_with = [
-        "@platforms//os:osx",
-        "@platforms//cpu:x86_64",
-    ],
-
-    # matches `yq_toolchain( name = "yq_darwin_amd64", ...` in this file
-    toolchain = ":yq_darwin_amd64",
-    toolchain_type = ":toolchain_type",  # `toolchain_type(...)` above
-)
-
-yq_toolchain(
-    name = "yq_darwin_arm64",
-    tool = "@yq_darwin_arm64//:yq",
-    visibility = ["//visibility:public"],
-)
+        # tool matches the `bazel run @yq_darwin_amd64//:yq -- --version` binary noted above in
+        # (WORKSPACE) `http_archive( name = "yq_darwin_amd64", ...)` with `alias( name="yq", ...)`
+        # in `build_file_content`.  Note that the alias in that content both maps the consistent `:yq`
+        # to the `:yq_darwin_amd64` arch-specific binary in each tarball archive, but also opens up
+        # visibility
+        tool = "@{}//:yq".format(k),
+        visibility = ["//visibility:public"],
+    )
+    for k, v in YQ.items()
+]
 
 # With https://github.com/bazelbuild/platforms/pull/67 it seems that Bazel direction seems to flop
 # back to "aarch64" and "x86_64" rather than the more consistent "amd64" and "arm64"
-toolchain(
-    name = "yq_darwin_arm64_toolchain",
-    exec_compatible_with = [
-        "@platforms//os:osx",  # yep, "osx" not "darwin"
-        "@platforms//cpu:aarch64",  # not "arm64": https://github.com/bazelbuild/platforms/pull/67
-    ],
-    target_compatible_with = [
-        "@platforms//os:osx",
-        "@platforms//cpu:aarch64",
-    ],
 
-    # matches `yq_toolchain( name = "yq_darwin_amd64", ...` in this file
-    toolchain = ":yq_darwin_arm64",
-    toolchain_type = ":toolchain_type",  # `toolchain_type(...)` above
-)
+[
+    toolchain(
+        name = "{}_toolchain".format(k),
+        exec_compatible_with = [
+            "@platforms//os:{}".format(v["os"]),
+            "@platforms//cpu:{}".format(v["cpu"]),
+        ],
+        target_compatible_with = [
+            "@platforms//os:{}".format(v["os"]),
+            "@platforms//cpu:{}".format(v["cpu"]),
+        ],
+        toolchain = ":{}".format(k),  # yq_toolchain(name=k) matches YQ.keys()
+        toolchain_type = ":toolchain_type",  # `toolchain_type(...)` above
+    )
+    for k, v in YQ.items()
+]
