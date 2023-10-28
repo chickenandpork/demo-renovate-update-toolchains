@@ -1,0 +1,50 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//toolchains/yq:yq_toolchain.bzl", "yq_var")
+
+# see this with `bazel build //test:datafile`
+write_file(
+    name = "datafile",
+    out = "datafile.yaml",
+    content = [
+        "---",
+        "a:",
+        "    b:",
+        "      - c: bob",
+        "",  # easier to debug with eyeballs
+    ],
+)
+
+# this file represents the output we expect from the genrule
+write_file(
+    name = "expected",
+    out = "expected.txt",
+    content = [
+        "bob",
+        "",  # easier to debug with eyeballs
+    ],
+)
+
+# replicates:
+# `bazel run @yq_darwin_amd64//:yq -- '.a.b[0].c' bazel-out/darwin-fastbuild/bin/test/datafile.yaml`
+# build a `testoutput.txt` that should match `expected.txt` using `bazel build //test:yq_test
+genrule(
+    name = "yq_test",
+    srcs = [":datafile"],
+    outs = ["testoutput.txt"],
+    cmd = "$(YQ) '.a.b[0].c'  $< > $@",
+    toolchains = [
+        ":yq_makevar",
+    ],
+)
+
+# diff the expected/actual for me
+diff_test(
+    name = "yq_bob_from_datafile",
+    file1 = ":expected",
+    file2 = ":yq_test",
+)
+
+# this activates the toolchain resolution and seeds a variable YQ as the local path to the yq
+# binary in the toolchain resolved for the build arch.
+yq_var(name = "yq_makevar")
