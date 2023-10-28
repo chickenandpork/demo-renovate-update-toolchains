@@ -43,30 +43,55 @@ format):
 (`WORKSPACE` or load()ed `.bzl` file))
 ```
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("//:lib/json.bzl", "json_bzl")
 
-http_archive(
-    name = "yq_darwin_amd64",
-    # The BUILD file is really a few convenience aliases (may remove later, or convert to list)
-    # You can test whether it's resolving for your architecture using:
+# We use bazel_skylib for unittestting but it's not significant to this example
 
-    #     bazel run @yq_darwin_amd64//:yq -- --version
+# generates a virtual repository with:
+# file: @versions_yq//:json.bzl defining YQ object that wraps attachments.json as a bazel dict
+# file: @versions_yq//:BUILD defining register_toolchains()
+
+json_bzl(
+    name = "versions_yq",
+    bzl_object = "YQ",
+    json = "//toolchains/yq:attachments.json", # <-- manually-maintained data
+)
+
+# fake resource is created by json_bzl() above
+load("@versions_yq//:json.bzl", "YQ", yq_register = "register_toolchains")
+
+# now create an import definition of the repos defined by json_bzl() from attachments.json
+# of course, they won't be read unless they're called in by dependency, and the http static
+# resource/blob will cache in a basic HTTP(S)_PROXY cache or a bazel cache service
+#
+# we cannot easily scaffold/template this as the `build_file_content` is fairly variable
+
+[http_archive(
+    name = k,
+    # NOTE: this generates the alias exploited in //toolchains/yq/BUILD.bazel: `tool = "@{}//:yq"`
     build_file_content = "\n".join([
-        """alias(name="yq", actual="//:yq_darwin_amd64", visibility = ["//visibility:public"])""",
+        """alias(name="yq", actual="//:{}", visibility = ["//visibility:public"])""".format(k),
         "",  # readability during debug
     ]),
-    sha256 = "52dd4639d5aa9dda525346dd74efbc0f017d000b1570b8fa5c8f983420359ef9",
-    urls = [
-        "https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_darwin_amd64.tar.gz",
-    ],
-)
+    sha256 = v["sha256"],
+    url = v["url"],
+) for k, v in YQ.items()]
 
-register_toolchains(
-    "//toolchains/yq:yq_darwin_amd64_toolchain",
-)
+# register the toolchains from @versions_yq
+yq_register()
 ```
 
+json_bzl() reads `//toolchains/yq:attachments.json` and creates:
+ - `@versions_yq//:json.bzl` defines YQ object that lightly wraps the attachment metadata
+ - `@versions_yq//:BUILD` defines register_toolchains()
+
+The YQ object is used for a list-comprehension of `http_archive()` registration of external
+resources, but defines a custom `BUILD` file resource to allow access to, and define a convenience
+alias for, the binaries and tools within (`yq` in this case, but done as arch/os tuplessuch as
+`yq_darwin_amd64`, but we remap those to `@{arch/os name}//:yq` for convenience
+
 ... so that defines the name, checksum, URL, and a simple `BUILD` file that makes it easier to use
-the tools (by exposing the `yq` binary) and gives us 	 simple test command
+the tools (by exposing the `yq` binary) and gives us simple test commands
 (`bazel run @yq_darwin_amd64//:yq -- --version`) to ensure the basic retrieval works.
 
 ### Define the Tool Components
@@ -111,9 +136,35 @@ structures per-http_archive and each wraps the given architecture's `yq` binary.
 
 ### Match the toolchain to an architecture/OS pair
 
+First, we collect a few small metadata items that would be listed in a query of `releases` in the
+api.github.com/project/ path into a file committed to code: this means the data we used cannot be
+mutable and change without a PR/MR committed; it also means we don't incur a network pull for every
+build, but use cached content.
+
+(`attachments.json` file, conventionally a `//toolchains/yq/attachments.json`)
+```
+{
+    "yq_darwin_amd64": {
+        "os": "osx",
+        "cpu": "x86_64",
+        "sha256": "52dd4639d5aa9dda525346dd74efbc0f017d000b1570b8fa5c8f983420359ef9",
+        "url": "https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_darwin_amd64.tar.gz"
+    },
+    "yq_darwin_arm64": {
+        "os": "osx",
+        "cpu": "aarch64",
+        "sha256": "52dd4639d5aa9dda525346dd74efbc0f017d000b1570b8fa5c8f983420359ef9",
+        "url": "https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_darwin_amd64.tar.gz"
+    }
+}
+```
+
+### Use the single-definition of the metadata to build toolchains
+
 (`BUILD` File, conventionally a `//toolchains/yq/BUILD.bazel`)
 ```
 load(":yq_toolchain.bzl", "yq_toolchain")  # load the rule()
+load("@versions_yq//:json.bzl", "YQ")  # generated in WORKSPACE from attachments.json
 
 # define a specific type to trigger type-checking
 toolchain_type(
@@ -121,39 +172,50 @@ toolchain_type(
     visibility = ["//visibility:public"],
 )
 
-yq_toolchain(
-    name = "yq_darwin_amd64",  # local scope doesn't clash with @yq_darwin_amd64
+# instance of yq_toolchain (strongly-typed toolchain struct) for each key/value in attachments
+[
+    yq_toolchain(
+        name = "{}".format(k),
 
-    # tool matches the `bazel run @yq_darwin_amd64//:yq -- --version` binary noted above in
-    # (WORKSPACE) `http_archive( name = "yq_darwin_amd64", ...)` with `alias( name="yq", ...)`
-    # in `build_file_content`.  Note that the alias in that content both maps the consistent `:yq`
-    # to the `:yq_darwin_amd64` arch-specific binary in each tarball archive, but also opens up
-    # visibility
+        tool = "@{}//:yq".format(k),
+        visibility = ["//visibility:public"],
+    )
+    for k, v in YQ.items()
+]
 
-    tool = "@yq_darwin_amd64//:yq",
-    visibility = ["//visibility:public"],
-)
+# toolchains: list-comprehension, one toolchain per key/value in attachments.json
 
-toolchain(
-    name = "yq_darwin_amd64_toolchain",
-    exec_compatible_with = [
-        "@platforms//os:osx",  # yep, "osx" not "darwin"
-        "@platforms//cpu:x86_64",  # yep, "x86_64" not "amd64"
-    ],
-    target_compatible_with = [
-        "@platforms//os:osx",
-        "@platforms//cpu:x86_64",
-    ],
-
-    # matches `yq_toolchain( name = "yq_darwin_amd64", ...` in this file
-    toolchain = ":yq_darwin_amd64",
-    toolchain_type = ":toolchain_type",  # `toolchain_type(...)` above
-)
+[
+    toolchain(
+        name = "{}_toolchain".format(k),
+        exec_compatible_with = [
+            "@platforms//os:{}".format(v["os"]),
+            "@platforms//cpu:{}".format(v["cpu"]),
+        ],
+        target_compatible_with = [
+            "@platforms//os:{}".format(v["os"]),
+            "@platforms//cpu:{}".format(v["cpu"]),
+        ],
+        toolchain = ":{}".format(k),  # yq_toolchain(name=k) matches YQ.keys()
+        toolchain_type = ":toolchain_type",  # `toolchain_type(...)` above
+    )
+    for k, v in YQ.items()
+]
 ```
 
-... so what this says is that when we're on an osx/x86_64, the toolchain is a `:toolchain_type`
-(scoped to the directory: `//toolchains/yq:toolchain_type`) returned by the rule
-`yq_toolchain( name = "yq_darwin_amd64", ...)` which is a `yqinfo.tool` pointing to where the
-binary is unpacked and ready when needed.  fwew.  A bunch of fairly cut-n-pastable boilerplate.
+... so for each key/value in attachments.json representing a binary resource, the appropriate
+os/arch mapped to that release is transposed to a bazel-style registration mapping the build/exec
+profile to the appropriate tool.  The `toolchain` maps out "on this architecture, which binary
+should I use?" to a strongly-typed toolchain that includes a dependency on the remote resource.
 
+Of course, Bazel doesn't pull it in until it's needed.  The resulting pulled repo, and the binary
+within that we need, gets mapped to the `tool` attribute of the `yqinfo` attribute of the toolchain
+specific to the YqToolchain descendent type of the toolchain.
 
+fwew.
+
+This turns a bunch of cut-n-paste into a repeated instance of the same function, mapped in
+consistent ways, for our use on-demand.
+
+We can see that -- going forward -- we just need to maintain that `attachments.json` file as the
+attachments of a GitHub release or the artifacts of a GitLab build evolve.
