@@ -1,6 +1,14 @@
 # demo-renovate-update-toolchains
 
-This is an example of using Renovate(Bot) to keep our OS/arch-specific toolchains updated
+This is an example of using Renovate(Bot) to keep our OS/arch-specific toolchains updated.
+
+The key take-away is PR https://github.com/chickenandpork/demo-renovate-update-toolchains/pull/5
+where we can see that RenovateBot matches the `sha256` for existing files from release `v4.34.1`
+and replaces with corresponding `sha256` for the current `v4.35.2`.  The power her eis that this
+solution scales: a few directories with JSON-based metadata and you're off-to-the races.
+
+Beneath that -- few tools to track at all, limited re-use -- the complexity and indirection here
+might be too much techdebt to justify.
 
 ## Toolchains
 
