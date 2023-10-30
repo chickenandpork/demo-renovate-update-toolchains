@@ -4,11 +4,21 @@ This is an example of using Renovate(Bot) to keep our OS/arch-specific toolchain
 
 The key take-away is PR https://github.com/chickenandpork/demo-renovate-update-toolchains/pull/5
 where we can see that RenovateBot matches the `sha256` for existing files from release `v4.34.1`
-and replaces with corresponding `sha256` for the current `v4.35.2`.  The power her eis that this
+and replaces with corresponding `sha256` for the current `v4.35.2`.  The power here is that this
 solution scales: a few directories with JSON-based metadata and you're off-to-the races.
 
-Beneath that -- few tools to track at all, limited re-use -- the complexity and indirection here
-might be too much techdebt to justify.
+Another facet of this solution is that you have a maintained, parsable structure of version and
+sha256 information that can be reused elsewhere.  For example, I have one project that is simply a
+lightweight IDP-like toolkit for Mac that provides multi-arch binaries for all the tools we need.
+This converts our install of a new Mac, and ongoing maintenance, to "1. install package; 2. there
+is no step 2, all the tools are present".  Indeed, this MacOS package avoids the Brewfiles and the
+transitive dependencies ("who knew that the CLI would change so much when the MySQL lib it needed
+changed?") that can add churn and entropy to your reliable build environment.  Using a solution
+similar to this meant I had the version info for sanity scripts and other checks as well, reducing
+Write-Everything-Twice errors.
+
+If you don't have a bunch of binaries to track and keep updated, and lack the need for the metadata
+to be used elsewhere, the complexity and indirection here might be too much techdebt to justify.
 
 ## Toolchains
 
@@ -53,7 +63,7 @@ format):
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//:lib/json.bzl", "json_bzl")
 
-# We use bazel_skylib for unittestting but it's not significant to this example
+# We use bazel_skylib for unittesting but it's not significant to this example
 
 # generates a virtual repository with:
 # file: @versions_yq//:json.bzl defining YQ object that wraps attachments.json as a bazel dict
@@ -95,7 +105,7 @@ json_bzl() reads `//toolchains/yq:attachments.json` and creates:
 
 The YQ object is used for a list-comprehension of `http_archive()` registration of external
 resources, but defines a custom `BUILD` file resource to allow access to, and define a convenience
-alias for, the binaries and tools within (`yq` in this case, but done as arch/os tuplessuch as
+alias for, the binaries and tools within (`yq` in this case, but done as arch/os tuples such as
 `yq_darwin_amd64`, but we remap those to `@{arch/os name}//:yq` for convenience
 
 ... so that defines the name, checksum, URL, and a simple `BUILD` file that makes it easier to use
@@ -129,7 +139,7 @@ def _yq_toolchain_impl(ctx):
     # that's not effective yet -- see the `yq_var()` workaround in toolchains/yq/yq_toolchain.bzl
     return [toolchain_info]
 
-# yq_toolchain() rule uses the implemantation to instantiate YqToolchainInfo provider filled in with
+# yq_toolchain() rule uses the implementation to instantiate YqToolchainInfo provider filled in with
 # the given tool (an os/arch-specific "yq" binary)
 yq_toolchain = rule(
     implementation = _yq_toolchain_impl,
@@ -220,7 +230,7 @@ Of course, Bazel doesn't pull it in until it's needed.  The resulting pulled rep
 within that we need, gets mapped to the `tool` attribute of the `yqinfo` attribute of the toolchain
 specific to the YqToolchain descendent type of the toolchain.
 
-fwew.
+Fwew.
 
 This turns a bunch of cut-n-paste into a repeated instance of the same function, mapped in
 consistent ways, for our use on-demand.
