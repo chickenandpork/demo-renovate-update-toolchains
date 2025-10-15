@@ -31,9 +31,9 @@
     "datasource": "github-release-attachments",
     "depname": "mikefarah/yq",
     "os": "freebsd",
-    "sha256": "f4069b6eee0ee3f3202c5ceeb0ed081362734b0b4e4c6754fbda05295a0831fc",
-    "url": "https://github.com/mikefarah/yq/releases/download/v4.47.2/yq_freebsd_amd64.tar.gz",
-    "version": "v4.47.2"
+    "sha256": "b5a00dff5a1cff69ec5cf054633141a89b1c99157fd57a9028c8f755c097f3d8",
+    "url": "https://github.com/mikefarah/yq/releases/download/v4.48.1/yq_freebsd_amd64.tar.gz",
+    "version": "v4.48.1"
   },
   "yq_freebsd_arm": {
     "cpu": "arm",
