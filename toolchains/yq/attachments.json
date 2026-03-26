@@ -76,9 +76,9 @@
     "datasource": "github-release-attachments",
     "depname": "mikefarah/yq",
     "os": "linux",
-    "sha256": "0cb66b6b49512ee1037487f139d0c531cfc34d532da365d417ccc21b4a715787",
-    "url": "https://github.com/mikefarah/yq/releases/download/v4.52.2/yq_linux_arm64.tar.gz",
-    "version": "v4.52.2"
+    "sha256": "33cf72426fc5f5e7d9b99801a58d34c6fa7e4426dad594569fb972dde5891109",
+    "url": "https://github.com/mikefarah/yq/releases/download/v4.52.5/yq_linux_arm64.tar.gz",
+    "version": "v4.52.5"
   },
   "yq_openbsd_amd64": {
     "cpu": "x86_64",
