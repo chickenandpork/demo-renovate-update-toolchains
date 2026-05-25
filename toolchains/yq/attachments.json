@@ -94,8 +94,8 @@
     "datasource": "github-release-attachments",
     "depname": "mikefarah/yq",
     "os": "windows",
-    "sha256": "8394de63138204bea852cd25adc1e1ec1a572f572a6f875d300b95ca0742d970",
-    "url": "https://github.com/mikefarah/yq/releases/download/v4.52.5/yq_windows_amd64.zip",
-    "version": "v4.52.5"
+    "sha256": "63e24aac0a75b760a491002b4bbeb7078f5ec1a0c868ec60fa0f525abecd6037",
+    "url": "https://github.com/mikefarah/yq/releases/download/v4.53.2/yq_windows_amd64.zip",
+    "version": "v4.53.2"
   }
 }
